@@ -1,0 +1,115 @@
+
+K8S basics:
+kubectl --help
+
+kubectl get node
+kubectl describe node <node-name>
+kubectl get pod
+kubectl get pod -A
+kubectl describe pod <pod-name>
+kubectl get pod <pod-name> -o yaml
+kubectl get namespace
+kubectl get all
+kubectl get all -A
+
+Imperative:
+kubectl run busybox --image=busybox --restart=Never
+kubectl get pod
+kubectl delete pod busybox
+
+Declarative:
+kubectl run nginx --image=nginx -o yaml --dry-run=client > nginx.yaml
+kubectl get pod
+kubectl apply -f nginx.yaml
+kubectl get pod
+kubectl exec nginx -- ls /
+kubectl delete pod nginx
+
+
+DaemonSet (all nodes), StatefulSets (own pvc), Deployments (shared pvc), and resources (CPU, MEM):
+vi elk.yaml>>
+-----------start of the elk.yaml file------------
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: elk
+spec:
+  selector:
+    matchLabels:
+      name: fluentd-elasticsearch
+  template:
+    metadata:
+      labels:
+        name: fluentd-elasticsearch
+    spec:
+      containers:
+      - name: fluentd-elasticsearch
+        image: quay.io/fluentd_elasticsearch/fluentd:v2.5.2
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+      terminationGracePeriodSeconds: 30
+-------end of the elk.yaml file----------
+
+kubectl apply -f elk.yaml
+kubectl get pod 
+kubectl get daemonset 
+kubectl delete daemonset elk
+
+Service accounts:
+vi build-robot-sa.yaml>>
+-------start of the build-robot-sa.yaml file----------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: build-robot-sa
+-------end of the build-robot-sa.yaml file----------
+
+kubectl apply -f build-robot-sa
+kubectl get serviceaccount
+kubectl get sa build-robot-sa -o yaml
+
+vi pod-sa.yaml>>
+-------start of the pod-sa.yaml file----------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-sa
+spec:
+  serviceAccountName: build-robot-sa
+  automountServiceAccountToken: true
+  containers:
+  - image: nginx
+    name: pod-sa
+-------end of the pod-sa.yaml file----------
+
+kubectl apply -f pod-sa.yaml
+kubectl describe pod pod-sa
+kubectl exec pod-sa -- ls /var/run/secrets/kubernetes.io/serviceaccount
+
+LOGS:
+kubectl logs pod-sa
+kubectl delete pod pod-sa
+kubectl delete sa build-robot-sa
+
+Yelb Multitier Application:
+
+kubectl get namespaces
+wget https://raw.githubusercontent.com/lamw/vmware-k8s-app-demo/master/yelb.yaml
+kubectl apply -f https://raw.githubusercontent.com/lamw/vmware-k8s-app-demo/master/yelb.yaml
+kubectl get pod -n yelb
+kubectl get deployment -n yelb
+kubectl get service -n yelb
+test: ->: http://<ip>:30001
+kubectl get -o yaml deployment yelb-db -n yelb | grep "replicas:"
+kubectl scale --replicas=3 deployment/yelb-db -n yelb
+kubectl get deployment -n yelb --watch
+kubectl get pod -n yelb
+kubectl scale --replicas=1 deployment/yelb-db -n yelb
+kubectl get pod -A
+kubectl delete namespace yelb
+kubectl get pod -A
+
